@@ -1,4 +1,5 @@
 import Order from "../../../../domain/checkout/entity/order";
+import OrderItem from "../../../../domain/checkout/entity/order_item";
 import OrderRepositoryInterface from "../../../../domain/checkout/repository/order-repository.interface";
 import OrderItemModel from "./order-item.model";
 import OrderModel from "./order.model";
@@ -11,7 +12,7 @@ Boa sorte.
 */
 
 export default class OrderRepository implements OrderRepositoryInterface {
-  
+
   async create(entity: Order): Promise<void> {
     await OrderModel.create(
       {
@@ -32,15 +33,84 @@ export default class OrderRepository implements OrderRepositoryInterface {
     );
   }
 
-  update(entity: Order): Promise<void> {
-    throw new Error("Method not implemented.");
+  async update(entity: Order): Promise<void> {
+    await OrderModel.update({
+      customerId: entity.customerId,
+      items: entity.items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        product_id: item.productId,
+        quantity: item.quantity,
+      })),
+    },
+      {
+        where: {
+          id: entity.id,
+        },
+      }
+    );
+    entity.items.forEach(item => {
+      OrderItemModel.destroy({ where: { id: item.id } });
+      OrderItemModel.create({
+        id: item.id,
+        order_id: entity.id,
+        name: item.name,
+        price: item.price,
+        product_id: item.productId,
+        quantity: item.quantity,
+      });
+    });
+
   }
 
-  find(id: string): Promise<Order> {
-    throw new Error("Method not implemented.");
+
+  async find(id: string): Promise<Order> {
+    let orderModel;
+    try {
+      orderModel = await OrderModel.findOne({
+        where: {
+          id,
+        },
+        include: ["items"],
+        rejectOnEmpty: true,
+      });
+    } catch (error) {
+      throw new Error("Order not found");
+    }
+    let items: OrderItem[] = [];
+    orderModel.items.forEach(item => {
+      items.push(new OrderItem(
+        item.id,
+        item.name,
+        item.price,
+        item.product_id,
+        item.quantity
+      ));
+    });
+
+    const order = new Order(id, orderModel.customer_id, items);
+
+    return order;
   }
-  
-  findAll(): Promise<Order[]> {
-    throw new Error("Method not implemented.");
+
+  async findAll(): Promise<Order[]> {
+    const orderModels = await OrderModel.findAll();
+
+    const orders = orderModels.map((orderModel) => {
+      let items = orderModel.items.map((item) => {
+        return new OrderItem(
+          item.id,
+          item.name,
+          item.price,
+          item.product_id,
+          item.quantity
+        );
+      });
+      let order = new Order(orderModel.id, orderModel.customer_id, items);
+      return order;
+    });
+
+    return orders;
   }
 }
