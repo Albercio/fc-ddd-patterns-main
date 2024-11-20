@@ -60,4 +60,16 @@ describe("Customer unit tests", () => {
     customer.addRewardPoints(10);
     expect(customer.rewardPoints).toBe(20);
   });
+
+  it("should change customer address", () => {
+    const customer = new Customer("1", "Customer 1");
+    const address = new Address("Street 1", 123, "13330-250", "São Paulo");
+    customer.Address = address;
+    const address2 = new Address("Street 2", 456, "6000000-000", "Fortaleza");
+    const spyEnviaConsoleLogHandler = jest.spyOn(customer.enviaConsoleLogHandler, "handle");
+    customer.changeAddress(address2);
+    expect(customer.Address).toBe(address2);
+    expect(spyEnviaConsoleLogHandler).toHaveBeenCalled();
+  });
+
 });
